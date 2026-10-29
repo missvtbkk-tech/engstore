@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eng Store Management V4 (GitHub + Google Sheets)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Simple-DataTables -->
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest"></script>
+    <!-- Tom Select -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+    <script>
+        tailwind.config = { theme: { extend: { colors: { primary: '#0f766e', secondary: '#0f766e' } } } }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Prompt', sans-serif; background-color: #f3f4f6; }
+        .tab-active { background-color: #ccfbf1; color: #0f766e; font-weight: 600; box-shadow: inset 0 -2px 0 0 #0d9488; }
+        .tab-inactive { background-color: transparent; color: #6b7280; }
+        .tab-inactive:hover { background-color: #f3f4f6; color: #374151; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #0d9488; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .dataTable-wrapper { font-size: 0.875rem; }
+        .dataTable-input { border-radius: 0.5rem; border-color: #e2e8f0; padding: 0.5rem 1rem; outline: none; width: 100%; max-width: 300px; }
+        .dataTable-input:focus { border-color: #0d9488; box-shadow: 0 0 0 1px #0d9488; }
+        .dataTable-table { min-width: 600px; }
+        .dataTable-table > thead > tr > th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; padding: 1rem; text-align: left; white-space: nowrap; }
+        .dataTable-table > tbody > tr > td { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; white-space: normal; word-break: break-word; min-width: 120px; }
+        .item-card { border: 2px solid transparent; transition: all 0.2s ease-in-out; display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+        .item-card:hover { border-color: #5eead4; background-color: #f0fdfa; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .ts-control { border-radius: 0.5rem !important; border-color: #d1d5db !important; padding: 0.75rem !important; font-family: inherit !important; font-size: 0.875rem !important; background-color: #fff !important; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; } 
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen pb-10">
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-gray-900/60 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-teal-100 text-teal-600 mb-4"><i class="fa-solid fa-toolbox text-3xl"></i></div>
+                <h2 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบ Eng Store</h2>
+            </div>
+            <div class="space-y-5">
+                <div><label class="block text-sm font-semibold mb-1.5">ชื่อผู้ใช้งาน *</label><input type="text" id="loginName" value="Admin" class="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-500" onkeydown="if(event.key === 'Enter') login()"></div>
+                <div><label class="block text-sm font-semibold mb-1.5">รหัสผ่าน</label><input type="password" id="loginPassword" value="admin1234" class="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-500" onkeydown="if(event.key === 'Enter') login()"></div>
+                <button onclick="login()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl"><i class="fa-solid fa-right-to-bracket mr-2"></i> เข้าสู่ระบบ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Modals -->
+    <div id="itemModal" class="fixed inset-0 bg-gray-900/60 z-[110] items-center justify-center backdrop-blur-sm p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center"><h3 class="text-xl font-bold" id="modal_title">จัดการอะไหล่/อุปกรณ์</h3><button onclick="closeItemModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+            <div class="p-6 overflow-y-auto">
+                <form id="itemForm" onsubmit="submitItemForm(event)">
+                    <input type="hidden" id="item_mode"><input type="hidden" id="item_old_article">
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-semibold mb-1">รหัสสินค้า/อะไหล่ *</label><input type="text" id="item_article" class="w-full border rounded-lg p-2.5 outline-none" required></div>
+                        <div><label class="block text-sm font-semibold mb-1">ชื่อรายการ *</label><input type="text" id="item_name" class="w-full border rounded-lg p-2.5 outline-none" required></div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-semibold mb-1">หมวดหมู่</label><input type="text" id="item_category" class="w-full border rounded-lg p-2.5 outline-none"></div>
+                            <div><label class="block text-sm font-semibold mb-1">หน่วยนับ</label><input type="text" id="item_unit" class="w-full border rounded-lg p-2.5 outline-none"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-semibold mb-1">ต้นทุน (฿)</label><input type="number" step="any" id="item_cost" class="w-full border rounded-lg p-2.5 outline-none"></div>
+                            <div><label class="block text-sm font-semibold mb-1">ราคาชาร์จ/ขาย (฿)</label><input type="number" step="any" id="item_price" class="w-full border rounded-lg p-2.5 outline-none"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end gap-3"><button type="button" onclick="closeItemModal()" class="bg-gray-200 py-2.5 px-5 rounded-lg font-bold">ยกเลิก</button><button type="submit" class="bg-teal-600 text-white py-2.5 px-6 rounded-lg font-bold">บันทึก</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Modals (Dispense / Return) -->
+    <div id="actionDispenseModal" class="fixed inset-0 bg-gray-900/60 z-[120] items-center justify-center backdrop-blur-sm p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+            <div class="px-6 py-4 border-b bg-teal-50 flex justify-between items-center"><h3 class="text-lg font-bold text-teal-800" id="dispense_modal_title">ทำรายการ</h3><button type="button" onclick="cancelSelection('dispense')" class="text-gray-400"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+            <div class="p-6">
+                <form onsubmit="submitOpForm(event, 'dispense')">
+                    <div class="mb-4"><p id="dis_selected_name" class="font-bold text-lg text-gray-800"></p><p id="dis_stock_info" class="text-xs text-teal-600"></p></div>
+                    <div class="mb-6"><label class="block text-sm font-semibold mb-1">จำนวน *</label><input type="number" id="dis_qty" step="any" min="0.01" class="w-full border rounded-lg p-3 text-center" required></div>
+                    <div class="flex justify-end gap-3"><button type="button" onclick="cancelSelection('dispense')" class="bg-gray-200 py-2 px-4 rounded-lg font-bold">ยกเลิก</button><button type="submit" class="bg-teal-600 text-white py-2 px-4 rounded-lg font-bold">ยืนยัน</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="max-w-7xl mx-auto p-2 sm:p-4 lg:p-6" id="mainApp" style="display: none;">
+        
+        <header class="mb-4 rounded-2xl shadow-md bg-white border border-gray-100 p-5 flex flex-col sm:flex-row justify-between items-center bg-gradient-to-r from-teal-700 to-cyan-800 text-white">
+            <div class="text-center sm:text-left flex items-center">
+                <div class="bg-white/20 p-3 rounded-xl mr-4"><i class="fa-solid fa-screwdriver-wrench text-2xl"></i></div>
+                <div><h1 class="text-2xl font-bold tracking-tight">ระบบคลังสโตร์ช่าง (Eng Store)</h1><p class="text-teal-100 text-sm font-light mt-0.5">เชื่อมต่อผ่าน GitHub + Google Sheets API</p></div>
+            </div>
+            <div class="mt-4 sm:mt-0 flex items-center bg-black/20 px-4 py-2 rounded-xl shadow-inner flex-wrap justify-center gap-2">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-circle-user text-2xl text-teal-200 mr-3"></i>
+                    <div class="flex flex-col mr-4 text-left"><span id="displayUserName" class="text-sm font-bold">Admin</span><span id="displayUserRole" class="text-[10px] text-teal-200">ผู้ดูแลระบบ</span></div>
+                    <input type="hidden" id="currentUser">
+                    <button type="button" onclick="logout()" class="ml-2 bg-red-500/80 hover:bg-red-500 p-2 rounded-lg"><i class="fa-solid fa-power-off text-sm"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 p-1.5 overflow-x-auto no-scrollbar">
+            <ul class="flex space-x-1 whitespace-nowrap min-w-max">
+                <li><button type="button" onclick="switchTab('dashboard')" id="tab-dashboard" class="py-2.5 px-4 rounded-lg text-sm tab-active"><i class="fa-solid fa-chart-simple mr-1.5"></i> ภาพรวม</button></li>
+                <li class="staff-only"><button type="button" onclick="switchTab('receive')" id="tab-receive" class="py-2.5 px-4 rounded-lg text-sm tab-inactive"><i class="fa-solid fa-truck-ramp-box mr-1.5"></i> รับของเข้า</button></li>
+                <li class="staff-only"><button type="button" onclick="switchTab('dispense')" id="tab-dispense" class="py-2.5 px-4 rounded-lg text-sm tab-inactive"><i class="fa-solid fa-person-digging mr-1.5"></i> เบิกใช้งาน / ส่งคืน</button></li>
+                <li class="staff-only"><button type="button" onclick="switchTab('sell')" id="tab-sell" class="py-2.5 px-4 rounded-lg text-sm tab-inactive"><i class="fa-solid fa-clipboard-list mr-1.5"></i> เปิดบิลซ่อม (Job)</button></li>
+                
+                <li><button type="button" onclick="switchTab('items')" id="tab-items" class="py-2.5 px-4 rounded-lg text-sm tab-inactive"><i class="fa-solid fa-boxes-stacked mr-1.5"></i> สต๊อกทั้งหมด</button></li>
+                <li><button type="button" onclick="switchTab('history')" id="tab-history" class="py-2.5 px-4 rounded-lg text-sm tab-inactive"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i> ประวัติรายการ</button></li>
+                
+                <li class="admin-only flex items-center px-2"><div class="h-6 w-px bg-gray-200"></div></li>
+                <li class="admin-only"><button type="button" onclick="switchTab('manage-items')" id="tab-manage-items" class="py-2.5 px-4 rounded-lg text-sm tab-inactive"><i class="fa-solid fa-toolbox mr-1.5"></i> จัดการฐานข้อมูล</button></li>
+            </ul>
+        </div>
+
+        <div class="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100 min-h-[500px] relative">
+            <div id="loadingOverlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl" style="display: none;">
+                <div class="loader mb-4 border-teal-600 border-t-teal-200" style="width: 40px; height: 40px; border-width: 4px;"></div>
+                <p class="text-teal-700 font-medium">กำลังเชื่อมต่อ API Google Sheets...</p>
+            </div>
+
+            <!-- SECTION: Dashboard -->
+            <section id="sec-dashboard" class="block animate-fade-in">
+                <div class="bg-teal-600 rounded-2xl p-6 text-white mb-6 flex justify-between items-center shadow-md">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-1">สวัสดี, <span id="dash-greeting-name" class="text-yellow-300"></span>!</h2>
+                        <p class="text-teal-100 text-sm">พร้อมสำหรับการจัดการสโตร์ช่างในวันนี้</p>
+                    </div>
+                    <button type="button" onclick="refreshAllDataSilent()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-sm font-medium"><i class="fa-solid fa-rotate-right mr-2"></i> รีเฟรชข้อมูล</button>
+                </div>
+                
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:bg-teal-50" onclick="switchTab('items')">
+                        <p class="text-xs text-gray-500 font-bold mb-2"><i class="fa-solid fa-screwdriver-wrench text-teal-500 mr-1"></i> รายการอะไหล่ทั้งหมด</p>
+                        <h3 class="text-2xl font-black text-gray-800 break-all" id="dash-total-items">-</h3>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:bg-cyan-50" onclick="switchTab('history')">
+                        <p class="text-xs text-gray-500 font-bold mb-2"><i class="fa-solid fa-clipboard-user text-cyan-500 mr-1"></i> ประวัติรายการของคุณ</p>
+                        <h3 class="text-2xl font-black text-gray-800 break-all" id="dash-my-history-count">-</h3>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div class="bg-gray-50 px-4 py-3 border-b"><h3 class="font-bold text-gray-700"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> เมนูด่วน (Quick Actions)</h3></div>
+                            
+                            <div class="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 staff-only">
+                                <button type="button" onclick="switchTab('receive')" class="border border-gray-200 bg-white p-3 rounded-xl hover:bg-teal-50 hover:border-teal-200 transition-all shadow-sm"><i class="fa-solid fa-truck-ramp-box text-teal-600 block text-2xl mb-2"></i><span class="text-xs font-bold text-gray-700">รับของเข้าสโตร์</span></button>
+                                <button type="button" onclick="switchTab('dispense')" class="border border-gray-200 bg-white p-3 rounded-xl hover:bg-cyan-50 hover:border-cyan-200 transition-all shadow-sm"><i class="fa-solid fa-person-digging text-cyan-600 block text-2xl mb-2"></i><span class="text-xs font-bold text-gray-700">เบิกใช้งานทั่วไป</span></button>
+                                <button type="button" onclick="switchTab('sell')" class="border border-gray-200 bg-white p-3 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm"><i class="fa-solid fa-clipboard-list text-blue-600 block text-2xl mb-2"></i><span class="text-xs font-bold text-gray-700">ใบเบิกงานซ่อม</span></button>
+                                <button type="button" onclick="switchTab('items')" class="border border-gray-200 bg-white p-3 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"><i class="fa-solid fa-magnifying-glass text-indigo-600 block text-2xl mb-2"></i><span class="text-xs font-bold text-gray-700">ค้นหาสต๊อก</span></button>
+                            </div>
+                            <div class="p-4 grid grid-cols-3 gap-3 admin-only">
+                                <button type="button" onclick="switchTab('manage-items')" class="border border-gray-200 bg-white p-3 rounded-xl hover:bg-teal-50 hover:border-teal-200 transition-all shadow-sm"><i class="fa-solid fa-toolbox text-teal-600 block text-2xl mb-2"></i><span class="text-xs font-bold text-gray-700">จัดการอะไหล่</span></button>
+                                <button type="button" onclick="switchTab('history')" class="border border-gray-200 bg-white p-3 rounded-xl hover:bg-cyan-50 hover:border-cyan-200 transition-all shadow-sm"><i class="fa-solid fa-clock-rotate-left text-cyan-600 block text-2xl mb-2"></i><span class="text-xs font-bold text-gray-700">ดูประวัติทั้งหมด</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: Receive -->
+            <section id="sec-receive" class="hidden animate-fade-in">
+                <h2 class="text-xl font-bold border-b pb-4 mb-6 text-gray-800"><i class="fa-solid fa-truck-ramp-box text-teal-600 mr-2"></i> รับสินค้า/อะไหล่เข้าสโตร์</h2>
+                <form id="receiveForm" onsubmit="submitOpForm(event, 'receive')">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="col-span-1 md:col-span-2 flex flex-col md:flex-row gap-4">
+                            <div class="w-full md:w-2/3"><label class="block text-sm font-semibold text-gray-700 mb-1">เลือกรายการ *</label><select id="rec_article" class="w-full border rounded-lg p-2.5 outline-none" required></select></div>
+                        </div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">จำนวน *</label><input type="number" id="rec_qty" min="1" step="any" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-teal-500" required></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">ต้นทุน/หน่วย (฿) *</label><input type="number" id="rec_cost" min="0" step="any" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-teal-500" required></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-1" id="rec_exp_label">PO Reference / วันหมดอายุ</label><input type="text" id="rec_exp" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-teal-500" placeholder="อ้างอิงเอกสารรับของ"></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">หมายเหตุ</label><input type="text" id="rec_remark" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-teal-500"></div>
+                    </div>
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button type="submit" class="bg-teal-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-teal-700 transition-colors shadow-md">บันทึกรับเข้า</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- SECTION: Dispense / Return (General Issue) -->
+            <section id="sec-dispense" class="hidden animate-fade-in">
+                <h2 class="text-xl font-bold border-b pb-4 mb-6 text-gray-800"><i class="fa-solid fa-person-digging text-cyan-600 mr-2"></i> เบิกใช้งานทั่วไป / ส่งคืน</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    <div class="col-span-1 md:col-span-2 bg-cyan-50 p-4 rounded-xl border border-cyan-100">
+                        <label class="block text-sm font-bold text-cyan-800 mb-3">ประเภทการทำรายการ *</label>
+                        <div class="flex gap-5 flex-wrap">
+                            <label class="cursor-pointer"><input type="radio" name="dis_type" value="use" checked onchange="toggleDisType()" class="accent-cyan-600"> ซ่อมบำรุงทั่วไป</label>
+                            <label class="cursor-pointer"><input type="radio" name="dis_type" value="site" onchange="toggleDisType()" class="accent-cyan-600"> เบิกเข้าสต๊อกหน้างาน</label>
+                            <label class="cursor-pointer font-semibold text-rose-600"><input type="radio" name="dis_type" value="return" onchange="toggleDisType()" class="accent-rose-500"> ส่งคืนเข้าสโตร์ (ของเหลือ)</label>
+                        </div>
+                    </div>
+                    <div class="col-span-1 md:col-span-2 mb-4"><label id="dis_room_label_modal" class="block text-sm font-semibold text-gray-700 mb-1">สถานที่ซ่อม / ชื่อช่างผู้เบิก *</label><input type="text" id="dis_room" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-cyan-500" required placeholder="ระบุสถานที่ หรือ ชื่อช่าง"></div>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4 bg-gray-50 mb-6 flex gap-3 shadow-sm">
+                    <input type="text" id="dis_search" placeholder="พิมพ์ชื่ออุปกรณ์ หรือ รหัสเพื่อค้นหา..." class="border border-gray-300 p-2.5 rounded-lg flex-1 outline-none focus:border-cyan-500" onkeydown="if(event.key === 'Enter') renderDispenseList();">
+                    <button type="button" onclick="renderDispenseList()" class="bg-cyan-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-cyan-700 transition-colors shadow">ค้นหา</button>
+                </div>
+                <div id="dispense_item_list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto mb-6 p-1"></div>
+            </section>
+
+            <!-- SECTION: Sell (Requisition Job Order) -->
+            <section id="sec-sell" class="hidden animate-fade-in">
+                <h2 class="text-xl font-bold border-b pb-4 mb-6 text-gray-800"><i class="fa-solid fa-clipboard-list text-blue-600 mr-2"></i> เปิดใบเบิกงานซ่อม (Job Order)</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 shadow-sm">
+                            <label class="block text-sm font-bold text-blue-900 mb-2">เลขที่ใบงาน (Job Number) / สถานที่ *</label>
+                            <div class="flex gap-3">
+                                <input type="text" id="sell_room" placeholder="เช่น JOB-2023-10-01 หรือ แอร์ห้อง 101" class="flex-1 border border-blue-200 rounded-lg p-3 outline-none focus:border-blue-500 font-bold" onkeydown="if(event.key==='Enter') initNewSale()">
+                                <button type="button" onclick="initNewSale()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow">เริ่มจัดของ</button>
+                                <button type="button" onclick="clearSellPOS()" class="bg-white border border-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-50 transition-colors">ล้างตะกร้า</button>
+                            </div>
+                        </div>
+                        <div class="mb-4 flex gap-2">
+                             <input type="text" id="job_search" placeholder="ค้นหาอะไหล่ในสโตร์ส่วนกลาง..." class="border border-gray-300 p-2.5 rounded-lg flex-1 outline-none focus:border-blue-500" onkeydown="if(event.key === 'Enter') renderSellList();">
+                             <button type="button" onclick="renderSellList()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">ค้นหา</button>
+                        </div>
+                        <div id="sell_item_list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto p-1"></div>
+                    </div>
+                    
+                    <div class="bg-white border border-gray-200 rounded-xl shadow-md flex flex-col h-[550px]">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 rounded-t-xl flex justify-between items-center"><h3 class="font-bold text-gray-800">รายการในใบเบิก</h3><span id="cart_room_display" class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">ยังไม่ระบุใบงาน</span></div>
+                        <div id="cart_items_container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50"></div>
+                        <div class="border-t border-gray-200 p-4 bg-white rounded-b-xl">
+                            <div class="flex justify-between mb-2 text-gray-600"><span class="text-sm font-medium">รวมจำนวน:</span><span id="cart_total_qty" class="font-bold text-gray-800">0 รายการ</span></div>
+                            <div class="flex justify-between items-end mb-4"><span class="font-bold text-gray-700">มูลค่ารวม:</span><span id="cart_total_price" class="text-2xl font-black text-blue-700">฿0.00</span></div>
+                            <button type="button" onclick="processMultiCheckout()" id="btn_checkout" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl disabled:opacity-50 hover:bg-blue-700 transition-colors shadow" disabled>ยืนยันการเบิกจ่าย (Issue)</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SECTION: Items DB -->
+            <section id="sec-items" class="hidden animate-fade-in">
+                <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-boxes-stacked text-teal-600 mr-2"></i> ฐานข้อมูลสต๊อกอะไหล่</h2>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table id="table-items" class="w-full text-sm"></table></div>
+            </section>
+            
+            <!-- SECTION: History -->
+            <section id="sec-history" class="hidden animate-fade-in">
+                <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-clock-rotate-left text-teal-600 mr-2"></i> ประวัติรายการทั้งหมด</h2>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table id="table-history" class="w-full text-sm"></table></div>
+            </section>
+
+            <!-- SECTION: Manage Items -->
+            <section id="sec-manage-items" class="hidden animate-fade-in admin-only-section">
+                <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-toolbox text-teal-600 mr-2"></i> จัดการฐานข้อมูล (รายการอะไหล่)</h2>
+                    <button type="button" onclick="openItemModal('add')" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors"><i class="fa-solid fa-plus mr-1"></i> เพิ่มรายการใหม่</button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto"><table id="table-manage-items" class="w-full text-sm"></table></div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script>
+        // ⚠️ สำคัญมาก: นำลิงก์ Web App ที่ได้จาก Google Apps Script มาใส่ในบรรทัดด้านล่าง
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxjvDrmABZIXhoygDh98M7TmQXat-SoJfjloMCHoBI0vv5cNVfDAJn5RFXj7kHcJKRo9w/exec"; 
+
+        let globalUsers = [], globalItems = [], globalHistory = [], globalSales = [], globalSiteStock = [], mainLots = [];
+        let currentStockMap = {}; 
+        let currentUserRole = 'user';
+        let dtInstances = {};
+        let selDispense = null;
+        let shoppingCart = [], activeSaleRoom = "";
+        let tomSelectInst = null;
+        
+        function escapeHTML(str) { return String(str||'').replace(/[&<>'"]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[t] || t)); }
+
+        // --- GAS Connector (API Version) ---
+        async function runGas(method, ...args) {
+            if (GAS_API_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+                Swal.fire('ข้อผิดพลาด', 'กรุณานำลิงก์ Web App URL จาก Google Apps Script มาใส่ในตัวแปร GAS_API_URL (บรรทัด 234) ในโค้ดก่อนครับ', 'error');
+                throw new Error("Missing GAS_API_URL");
+            }
+            
+            try {
+                // ส่ง POST Request ไปยัง GAS เป็น plain text เพื่อหลีกเลี่ยง preflight block ของ CORS
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ method: method, args: args })
+                });
+                
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const result = await response.json();
+                if (result.success === false && result.message) throw new Error(result.message);
+                return result;
+            } catch (error) {
+                console.error("API Error:", error);
+                throw error;
+            }
+        }
+        
+        function onOpSuccess(r, skipRefresh = false) { 
+            if(r && r.success) { 
+                Swal.fire({icon:'success',title:'สำเร็จ!',text:r.message,timer:1500,showConfirmButton:false}); 
+                document.querySelectorAll('form').forEach(f=>f.reset()); 
+                if(tomSelectInst) tomSelectInst.clear(); 
+                document.querySelectorAll('[id$="Modal"]').forEach(m => m.style.display = 'none');
+                if (!skipRefresh) refreshAllDataSilent();
+            } else {
+                Swal.fire('Error', r?r.message:'Unknown Error', 'error'); 
+            }
+        }
+        function onError(e) { Swal.fire('Error', String(e), 'error'); }
+
+        async function login() {
+            const u = document.getElementById('loginName').value.trim(), p = document.getElementById('loginPassword').value;
+            if(!u) return; Swal.fire({title:'กำลังเข้าสู่ระบบ...', didOpen:()=>Swal.showLoading()});
+            try {
+                const r = await runGas('verifyLogin', u, p);
+                if(!r.success) return Swal.fire('ปฏิเสธ', r.message, 'error');
+                Swal.close();
+                document.getElementById('currentUser').value = r.username; document.getElementById('displayUserName').textContent = r.username; document.getElementById('dash-greeting-name').textContent = r.username;
+                currentUserRole = r.role; document.getElementById('displayUserRole').textContent = r.role==='admin'?'Admin':'Staff / ช่าง';
+                applyRoleUI(); document.getElementById('loginModal').style.display='none'; document.getElementById('mainApp').style.display='block'; switchTab('dashboard'); refreshAllData();
+            } catch(e) { Swal.fire('Error', String(e), 'error'); }
+        }
+        
+        function logout() { document.getElementById('mainApp').style.display='none'; document.getElementById('loginModal').style.display='flex'; }
+
+        function applyRoleUI() {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = currentUserRole==='admin'?'':'none');
+            document.querySelectorAll('.staff-only').forEach(el => el.style.display = currentUserRole==='admin'?'none':'');
+        }
+
+        function switchTab(id) {
+            ['dashboard','receive','dispense','sell','items','history','manage-items'].forEach(i => {
+                if(document.getElementById('sec-'+i)) document.getElementById('sec-'+i).style.display='none';
+                if(document.getElementById('tab-'+i)) document.getElementById('tab-'+i).className='py-2.5 px-4 rounded-lg text-sm tab-inactive';
+            });
+            if(document.getElementById('sec-'+id)) document.getElementById('sec-'+id).style.display='block';
+            if(document.getElementById('tab-'+id)) document.getElementById('tab-'+id).className='py-2.5 px-4 rounded-lg text-sm tab-active';
+            setTimeout(()=>{
+                if(id==='dispense') renderDispenseList();
+                if(id==='sell') renderSellList();
+                if(['history','items','manage-items'].includes(id)) renderSpecificTable(id);
+            }, 50);
+        }
+
+        async function refreshAllData(){
+            const overlay = document.getElementById('loadingOverlay');
+            if(overlay) overlay.style.display='flex';
+            try {
+                const res = await Promise.all([runGas('getUsersList'), runGas('getItemsList'), runGas('getHistoryData'), runGas('getSiteStockList')]);
+                globalUsers = res[0]||[]; globalItems = res[1]||[]; globalHistory = res[2]||[]; globalSiteStock = res[3]||[];
+                
+                buildMainLots(); renderDashboards(); populateReceiveItems();
+                const aTab = document.querySelector('.tab-active'); if(aTab) renderSpecificTable(aTab.id.replace('tab-',''));
+            } catch(e){ console.error(e); } finally { if(overlay) overlay.style.display='none'; }
+        }
+        
+        async function refreshAllDataSilent(){ refreshAllData(); }
+
+        function buildMainLots(){
+            mainLots = globalItems.map(i => ({...i, lotQty: i.mainStock, expDate: '-'})).filter(i => i.lotQty > 0 || true); // Allow returning even if stock is 0
+        }
+
+        function populateReceiveItems() {
+            let o = '<option value="">คลิกเพื่อเลือกรายการ...</option>' + globalItems.map(i=>`<option value="${i.articleNo}">${i.articleNo} : ${i.name}</option>`).join('');
+            const sel = document.getElementById('rec_article'); 
+            if(sel) {
+                if(tomSelectInst) tomSelectInst.destroy();
+                sel.innerHTML=o;
+                tomSelectInst = new TomSelect('#rec_article', {
+                    onChange:()=>{
+                        let a=sel.value, i=globalItems.find(x=>String(x.articleNo)===String(a)); 
+                        if(document.getElementById('rec_cost')) document.getElementById('rec_cost').value = i ? i.cost : '';
+                    }
+                });
+            }
+        }
+
+        function renderDashboards(){
+            document.getElementById('dash-total-items').textContent = globalItems.length;
+            const usr = document.getElementById('currentUser').value;
+            const myH = globalHistory.filter(h=>String(h.user)===usr);
+            document.getElementById('dash-my-history-count').textContent = myH.length;
+        }
+
+        function toggleDisType(){ 
+            const t = document.querySelector('input[name="dis_type"]:checked').value;
+            const lbl = document.getElementById('dis_room_label_modal');
+            if(t === 'site') lbl.textContent = 'สถานที่/สต๊อกหน้างาน *';
+            else if(t === 'return') lbl.textContent = 'สถานที่/ชื่อช่างผู้ส่งคืน *';
+            else lbl.textContent = 'สถานที่ซ่อม / ชื่อช่างผู้เบิก *'; 
+            renderDispenseList(); // Re-render to update UI if needed
+        }
+
+        function renderDispenseList(){
+            const s = document.getElementById('dis_search').value.toLowerCase();
+            const el = document.getElementById('dispense_item_list');
+            const disType = document.querySelector('input[name="dis_type"]:checked').value;
+            
+            el.innerHTML = globalItems.filter(l=>l&&(!s||String(l.name).toLowerCase().includes(s)||String(l.articleNo).toLowerCase().includes(s))).map(l=>{
+                // If it's not a return, and stock is 0, don't show it (or show as out of stock)
+                if (disType !== 'return' && l.mainStock <= 0) return '';
+                
+                return `
+                <div onclick="selectDispenseItem('${l.articleNo}', '-', ${l.mainStock}, ${l.cost||0})" class="item-card bg-white p-3 rounded-xl border border-gray-200 cursor-pointer flex flex-col justify-between">
+                    <div>
+                        <b class="text-sm line-clamp-2 text-gray-800 leading-tight">${l.name}</b>
+                        <p class="text-[10px] text-gray-500 mt-1">รหัส: ${l.articleNo}</p>
+                    </div>
+                    <div class="flex justify-between items-end mt-3">
+                        <span class="bg-cyan-100 text-cyan-800 px-2 py-0.5 text-xs rounded font-bold">สต๊อกมี: ${l.mainStock} ${l.unit||''}</span>
+                    </div>
+                </div>`;
+            }).join('')||'<p class="col-span-full text-center py-8 text-gray-400">ไม่พบรายการที่ค้นหา</p>';
+        }
+
+        function cancelSelection(t){ document.getElementById('action'+t.charAt(0).toUpperCase()+t.slice(1)+'Modal').style.display='none'; }
+        function selectDispenseItem(a,e,q,c){ 
+            selDispense={articleNo:a,expDate:e,maxQty:q,cost:c}; 
+            let i=globalItems.find(x=>String(x.articleNo)===String(a)); 
+            const disType = document.querySelector('input[name="dis_type"]:checked').value;
+            
+            const qtyInput = document.getElementById('dis_qty');
+            qtyInput.value = '';
+            
+            // If it's a return, no upper bound on how much they can return back
+            if(disType === 'return') {
+                qtyInput.removeAttribute('max');
+                document.getElementById('dispense_modal_title').innerHTML = '<i class="fa-solid fa-rotate-left mr-2"></i> ส่งคืนสต๊อก (Return)';
+            } else {
+                qtyInput.max = q;
+                document.getElementById('dispense_modal_title').innerHTML = '<i class="fa-solid fa-box-open mr-2"></i> เบิกอุปกรณ์/อะไหล่';
+            }
+            
+            document.getElementById('dis_selected_name').textContent = i ? i.name : a; 
+            document.getElementById('dis_stock_info').textContent = `สต๊อกปัจจุบัน: ${q} ${i ? i.unit : ''}`; 
+            document.getElementById('actionDispenseModal').style.display='flex'; 
+        }
+
+        function renderSellList(){
+            const s=document.getElementById('job_search') ? document.getElementById('job_search').value.toLowerCase() : '';
+            const el = document.getElementById('sell_item_list');
+            if(!el) return;
+            el.innerHTML = globalItems.filter(l=>l&&l.mainStock > 0&&(!s||String(l.name).toLowerCase().includes(s)||String(l.articleNo).toLowerCase().includes(s))).map(l=>`
+                <div onclick="selectSellItem('${l.articleNo}', '-', ${l.mainStock}, ${l.cost||0}, ${l.price||0})" class="item-card bg-white p-3 rounded-xl border border-gray-200 cursor-pointer">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 pr-2">
+                            <b class="text-sm text-blue-900 line-clamp-2 leading-tight">${l.name}</b>
+                            <p class="text-[10px] text-gray-500 mt-0.5">รหัส: ${l.articleNo}</p>
+                        </div>
+                        <span class="bg-blue-100 text-blue-800 px-1.5 py-0.5 text-[10px] rounded font-bold whitespace-nowrap">มี ${l.mainStock}</span>
+                    </div>
+                </div>`).join('')||'<p class="col-span-full text-center py-4 text-gray-400">พิมพ์ค้นหาด้านบน...</p>';
+        }
+
+        function selectSellItem(a,e,q,c,p){ 
+            if(!activeSaleRoom) return Swal.fire('แจ้งเตือน', 'กรุณาระบุเลขที่ใบงาน และกดเริ่มจัดของก่อน', 'warning');
+            let idx = shoppingCart.findIndex(x=>String(x.articleNo)===String(a));
+            if(idx>=0){if(shoppingCart[idx].qty<q)shoppingCart[idx].qty++; else Swal.fire('เตือน','จำนวนเกินสต๊อกที่มี','warning');}
+            else { let i=globalItems.find(x=>String(x.articleNo)===String(a)); shoppingCart.push({articleNo:a, name:i?i.name:a, expDate:e, maxQty:q, cost:c, price:p, qty:1}); }
+            renderCartUI();
+        }
+
+        function initNewSale(){ 
+            const roomInput = document.getElementById('sell_room').value.trim().toUpperCase();
+            if(!roomInput) return Swal.fire('แจ้งเตือน', 'กรุณาระบุเลขที่ใบงานหรือสถานที่', 'warning');
+            shoppingCart=[]; activeSaleRoom=roomInput; 
+            document.getElementById('cart_room_display').textContent=`ใบงาน: ${activeSaleRoom}`; 
+            renderCartUI(); 
+            renderSellList(); 
+        }
+
+        function clearSellPOS(){
+            document.getElementById('sell_room').value = '';
+            shoppingCart = []; activeSaleRoom = '';
+            document.getElementById('cart_room_display').textContent = 'ยังไม่ระบุใบงาน';
+            renderCartUI();
+        }
+
+        function updateCartQty(idx, d){ 
+            let i=shoppingCart[idx], n=i.qty+d; 
+            if(n>i.maxQty)return Swal.fire('เตือน','เกินสต๊อกที่มี','warning'); 
+            if(n<=0)shoppingCart.splice(idx,1); else i.qty=n; 
+            renderCartUI(); 
+        }
+
+        function renderCartUI(){
+            const c=document.getElementById('cart_items_container'); 
+            if(!shoppingCart.length){
+                c.innerHTML='<div class="flex flex-col items-center justify-center h-full text-gray-400 py-10"><i class="fa-solid fa-box-open text-4xl mb-3 opacity-50"></i><p class="text-sm">ตะกร้าว่างเปล่า</p></div>'; 
+                document.getElementById('btn_checkout').disabled=true; 
+                document.getElementById('cart_total_price').textContent='฿0.00';
+                document.getElementById('cart_total_qty').textContent='0 รายการ';
+                return;
+            }
+            let t=0; 
+            c.innerHTML=shoppingCart.map((i,idx)=>{
+                let l=i.qty*i.price; t+=l; 
+                return `<div class="bg-white p-3 border border-gray-200 rounded-lg mb-2 relative shadow-sm group">
+                    <div class="pr-8">
+                        <p class="font-bold text-sm text-gray-800 leading-tight">${i.name}</p>
+                    </div>
+                    <div class="flex justify-between items-center mt-3">
+                        <div class="flex items-center bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                            <button type="button" onclick="updateCartQty(${idx},-1)" class="px-2.5 py-1 hover:bg-gray-200 text-gray-600 font-bold transition-colors">-</button>
+                            <input type="number" value="${i.qty}" min="1" max="${i.maxQty}" onchange="updateCartQty(${idx}, this.value - ${i.qty})" class="px-1 py-1 font-bold text-sm bg-white text-blue-700 w-12 text-center outline-none">
+                            <button type="button" onclick="updateCartQty(${idx},1)" class="px-2.5 py-1 hover:bg-gray-200 text-gray-600 font-bold transition-colors">+</button>
+                        </div>
+                        <b class="text-gray-700 text-sm hidden">฿${l.toLocaleString(undefined,{minimumFractionDigits:2})}</b>
+                    </div>
+                    <button type="button" onclick="updateCartQty(${idx},-999)" class="absolute right-2 top-2 text-gray-300 hover:text-red-500 transition-colors"><i class="fa fa-times text-lg"></i></button>
+                </div>`
+            }).join('');
+            document.getElementById('cart_total_price').textContent=`฿${t.toLocaleString(undefined, {minimumFractionDigits: 2})}`; 
+            document.getElementById('cart_total_qty').textContent=shoppingCart.reduce((s,i)=>s+i.qty,0)+' ชิ้น'; 
+            document.getElementById('btn_checkout').disabled=false;
+        }
+
+        async function processMultiCheckout(){
+            if(!shoppingCart.length||!activeSaleRoom)return; 
+            const res = await Swal.fire({title:'ยืนยันการทำรายการเบิกอะไหล่?', text:`ใบงาน: ${activeSaleRoom}`, icon:'question', showCancelButton:true, confirmButtonText:'ยืนยัน', confirmButtonColor:'#2563eb'});
+            if(!res.isConfirmed)return; Swal.fire({title:'กำลังบันทึกและตัดสต๊อก...',didOpen:()=>Swal.showLoading()});
+            try{ 
+                let user = document.getElementById('currentUser').value;
+                let payload = { cart: shoppingCart, roomNo: activeSaleRoom, user: user };
+                let r = await runGas('saveMultiSellData', payload);
+                if(r.success) {
+                    Swal.fire({icon:'success',title:'เบิกจ่ายสำเร็จ',text:`บันทึกใบงานเรียบร้อย`, timer:2000, showConfirmButton:false});
+                    clearSellPOS(); 
+                    onOpSuccess({success:true}, false);
+                } else {
+                    Swal.fire('ข้อผิดพลาด', r.message, 'error');
+                }
+            }catch(e){onError(e);}
+        }
+
+        async function submitOpForm(e, type){
+            e.preventDefault(); let d={user:document.getElementById('currentUser').value}, fn='';
+            if(type==='receive'){
+                d={...d, articleNo:document.getElementById('rec_article').value, qty:parseFloat(document.getElementById('rec_qty').value), cost:parseFloat(document.getElementById('rec_cost').value), expDate:document.getElementById('rec_exp').value, remark:document.getElementById('rec_remark').value}; 
+                fn='saveReceiveData';
+            }
+            else if(type==='dispense'){
+                d={...d, articleNo:selDispense.articleNo, expDate:selDispense.expDate, qty:parseFloat(document.getElementById('dis_qty').value), cost:selDispense.cost, roomNo:document.getElementById('dis_room').value, disType:document.querySelector('input[name="dis_type"]:checked').value}; 
+                
+                // ตรวจสอบว่าถ้าเบิกออก จำนวนต้องไม่เกินที่มี (ยกเว้นรับคืน)
+                if (d.disType !== 'return' && d.qty > selDispense.maxQty) {
+                    return Swal.fire('แจ้งเตือน', `คุณระบุจำนวนเกินกว่าสต๊อกที่มี (${selDispense.maxQty})`, 'warning');
+                }
+
+                fn='saveDispenseData';
+            }
+            Swal.fire({title:'กำลังบันทึก...',didOpen:()=>Swal.showLoading()});
+            try{ const r = await runGas(fn, d); onOpSuccess(r); } catch(e){onError(e);}
+        }
+
+        function renderSpecificTable(id) {
+            if(dtInstances[id]){dtInstances[id].destroy(); dtInstances[id]=null;}
+            let data = {headings:[], data:[]}; 
+            if(id==='items'){
+                data.headings = ['รหัส','ชื่อรายการ','หมวดหมู่','สต๊อกคลังหลัก','สต๊อกหน้างาน'];
+                globalItems.forEach(i=>{ data.data.push([i.articleNo, i.name, i.category||'', `<b class="text-teal-700">${i.mainStock}</b>`, `<b class="text-cyan-600">${i.roomStock}</b>`]); });
+            } else if (id==='history') {
+                data.headings = ['TxID','วันที่','ประเภท','รหัสสินค้า/อะไหล่','จน.','อ้างอิง/สถานที่','พนักงาน'];
+                [...globalHistory].reverse().forEach(h=>{ 
+                    let typeBadge = h.type;
+                    if(h.type === 'รับเข้า' || h.type === 'รับคืน') typeBadge = `<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">${h.type}</span>`;
+                    else if(h.type === 'เบิกใช้งาน' || h.type === 'เบิกจ่าย (Job)') typeBadge = `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">${h.type}</span>`;
+                    else if(h.type === 'เบิกเข้าหน้างาน') typeBadge = `<span class="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs">${h.type}</span>`;
+                    
+                    data.data.push([h.id, h.date, typeBadge, h.articleNo, `<b class="${(h.type === 'รับเข้า' || h.type === 'รับคืน') ? 'text-green-600' : 'text-rose-600'}">${h.qty}</b>`, h.remark||'', h.user||'']); 
+                });
+            } else if (id==='manage-items') {
+                data.headings = ['รหัส','ชื่อรายการ','หมวดหมู่','ต้นทุน (Cost)','ราคา (Price)','จัดการ'];
+                globalItems.forEach(i=>{ data.data.push([i.articleNo,i.name,i.category||'',i.cost,i.price,`<button type="button" onclick="openItemModal('edit','${i.articleNo}')" class="text-blue-600 mr-3 p-1"><i class="fa fa-pen"></i></button><button type="button" onclick="deleteItemAction('${i.articleNo}')" class="text-rose-600 p-1"><i class="fa fa-trash"></i></button>`]); });
+            }
+            if(data.data.length>0) dtInstances[id] = new simpleDatatables.DataTable('#table-'+id, {data:data, perPage: 15}); else document.getElementById('table-'+id).innerHTML='<div class="text-center py-8 text-gray-500">ไม่มีข้อมูล</div>';
+        }
+
+        function openItemModal(m,a=''){ document.getElementById('item_mode').value=m; document.getElementById('itemForm').reset(); if(m==='edit'){let i=globalItems.find(x=>String(x.articleNo)===String(a)); document.getElementById('item_old_article').value=a; document.getElementById('item_article').value=i.articleNo; document.getElementById('item_name').value=i.name; document.getElementById('item_category').value=i.category; document.getElementById('item_unit').value=i.unit; document.getElementById('item_cost').value=i.cost; document.getElementById('item_price').value=i.price;} document.getElementById('itemModal').style.display='flex'; }
+        function closeItemModal(){document.getElementById('itemModal').style.display='none';}
+        async function submitItemForm(e){e.preventDefault();let d={mode:document.getElementById('item_mode').value,oldArticleNo:document.getElementById('item_old_article').value,articleNo:document.getElementById('item_article').value,name:document.getElementById('item_name').value,category:document.getElementById('item_category').value,unit:document.getElementById('item_unit').value,cost:document.getElementById('item_cost').value,price:document.getElementById('item_price').value};Swal.fire({title:'บันทึก...',didOpen:()=>Swal.showLoading()});try{const r=await runGas(d.mode==='add'?'saveNewItem':'updateItem',d);onOpSuccess(r);}catch(e){onError(e);}}
+        async function deleteItemAction(a){if((await Swal.fire({title:'ลบรายการนี้?', text:'การลบออกจากฐานข้อมูลจะไม่ลบประวัติเก่า', showCancelButton:true, confirmButtonColor:'#e11d48'})).isConfirmed){Swal.fire({title:'กำลังลบ...',didOpen:()=>Swal.showLoading()});try{const r=await runGas('deleteItem',a);onOpSuccess(r);}catch(e){onError(e);}}}
+
+    </script>
+</body>
+</html>
